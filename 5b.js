@@ -50,6 +50,8 @@ let _cursor = 'default';
 let touchCount = 0;
 let hoverText = '';
 const _keysDown = new Array(222).fill(false);
+let e_held_last_frame = false;
+let q_held_last_frame = false;
 let _frameCount = 0;
 let qTimer = 0;
 let inputText = '';
@@ -585,9 +587,9 @@ const blockProperties = [
 	[false,true,false,false,false,false,false,false,true,false,false,0,1,false,false,true,1,false],
 	[false,false,false,false,false,false,false,false,true,false,false,0,1,false,false,true,1,false],
 	[false,true,false,false,false,false,false,false,true,false,false,0,6,false,false,true,12,true,[0,1,2,3,4,5,6,7,8,9,10,11]],
-	[false,true,false,false,false,false,false,false,true,false,false,0,6,false,false,false,1,false],
+	[false,true,false,false,false,false,false,false,true,false,false,0,6,false,false,true,1,false],
 	[false,true,false,false,false,false,false,false,true,false,false,0,6,false,false,true,12,true,[0,1,2,3,4,5,6,7,8,9,10,11]],
-	[false,true,false,false,false,false,false,false,true,false,false,0,6,false,false,false,1,false],
+	[false,true,false,false,false,false,false,false,true,false,false,0,6,false,false,true,1,false],
 	[false,false,false,false,false,false,false,false,false,false,true,0,0,false,false,true,1,false],
 	[false,false,false,false,false,false,false,false,false,false,true,0,0,false,false,true,1,false],
 	[false,false,false,false,false,false,false,false,false,false,false,0,0,false,false,true,1,false],
@@ -638,7 +640,7 @@ const blockProperties = [
 	// tile13
 	[false,false,false,false,false,false,false,false,false,false,false,0,0,false,true,true,1,false],
 	[true,true,true,true,false,false,false,false,false,false,false,0,0,true,false,true,1,false],
-	[false,false,false,false,false,false,false,false,false,true,true,0,0,false,false,false,1,false],
+	[false,false,false,false,false,false,false,false,false,true,true,0,0,false,false,true,1,false],
 	[false,true,false,false,false,false,false,false,true,false,false,0,2,false,false,true,1,false],
 	[false,false,false,false,false,false,false,false,true,false,false,0,2,false,false,true,1,false],
 ];
@@ -2058,6 +2060,7 @@ let dialogueTabCharHover = [-1,0];
 let scale = 20;
 let tool = 0;
 let selectedTile = 0;
+let charClans = [];
 let mouseIsDown = false;
 let pmouseIsDown = false;
 let mousePressedLastFrame;
@@ -2448,12 +2451,7 @@ function myLevelsTextBoxes() {
 }
 
 function menuExitLevelCreator() {
-	if (!lcChangesMade) {
-		menuScreen = 0;
-	} else {
-		lcPopUpNextFrame = true;
-		lcPopUpType = 1;
-	}
+	menuScreen = 0;
 }
 
 function menuExplore() {
@@ -2910,7 +2908,7 @@ function drawRoundedRect(fill, x, y, w, h, cr) {
 function drawMenu() {
 	ctx.fillStyle = '#666666';
 	ctx.fillRect(0, 0, cwidth, cheight);
-	ctx.drawImage(svgMenu0, 0, 0, cwidth, cheight);
+	//ctx.drawImage(svgMenu0, 0, 0, cwidth, cheight);
 	ctx.fillStyle = '#ffffff';
 	ctx.textBaseline = 'bottom';
 	ctx.textAlign = 'left';
@@ -2928,10 +2926,10 @@ function drawMenu() {
 		drawNewGame2Button('YES', 680.4, 169.75, '#993333', menuNewGame2yes);
 		drawNewGame2Button('NO', 815.9, 169.75, '#1a4d1a', menuNewGame2no);
 	} else {
-		drawMenu0Button('OPTIONS', 665.55, 259.1, false, menuOptions);
-		drawMenu0Button('NEW GAME', 665.55, 348.4, false, menuNewGame);
+		drawMenu0Button('SETTINGS', 665.55, 259.1, false, menuOptions);
+		drawMenu0Button('MY SAVEFILES', 665.55, 348.4, false, menuNewGame);
 	}
-	drawMenu0Button('CONTINUE GAME', 665.55, 393.05, levelProgress == 0, menuContGame);
+	drawMenu0Button('CONTINUE LAST', 665.55, 393.05, levelProgress == 0, menuContGame);
 	drawMenu0Button('LEVEL CREATOR', 665.55, 437.7, false, menuLevelCreator);
 	drawMenu0Button('EXPLORE', 665.55, 482.5, false, menuExplore);
 
@@ -3202,6 +3200,7 @@ function resetLevel() {
 			if (char[i].charState == 3 || char[i].charState == 4) {
 				char[i].speed = myLevelChars[1][i][4];
 				char[i].motionString = generateMS(myLevelChars[1][i]);
+				char[i].motionPath = generateMP(myLevelChars[1][i]);
 			}
 		}
 
@@ -3260,6 +3259,7 @@ function resetLevel() {
 			if (char[i].charState == 3 || char[i].charState == 4) {
 				char[i].speed = myLevelChars[1][i][4];
 				char[i].motionString = generateMS(myLevelChars[1][i]);
+				char[i].motionPath = generateMP(myLevelChars[1][i]);
 			}
 		}
 
@@ -3318,6 +3318,7 @@ function resetLevel() {
 			if (char[i].charState == 3 || char[i].charState == 4) {
 				char[i].speed = startLocations[currentLevel][i][6][0] * 10 + startLocations[currentLevel][i][6][1];
 				char[i].motionString = startLocations[currentLevel][i][6];
+				char[i].motionPath = [];
 			}
 		}
 
@@ -5116,7 +5117,7 @@ function resetLevelCreator() {
 	LCEndGateX = -1;
 	LCEndGateY = -1;
 	LCCoinX = -1;
-	LCCoinY = -1;
+	LCCoinY = -1
 	char = [];
 	levelTimer = 0;
 
@@ -5175,7 +5176,6 @@ function resetLCOSC() {
 }
 
 function setLCBG() {
-	lcChangesMade = true;
 	osctx1.drawImage(imgBgs[selectedBg], -97, 0, 854, 480);
 }
 
@@ -5393,6 +5393,19 @@ function copyRect() {
 		}
 		LCRect = [-1, -1, -1, -1];
 		copied = true;
+	}
+}
+
+function checkCharClans(i) {
+	for (let j = 0; j < charClans.length; j++) {
+		if(charClans[j][0]==i){
+			for (let k = 0; k < charClans[j].length-1; k++) {
+				let currchar = charClans[j][k+1];
+				myLevelChars[1][currchar][5] = myLevelChars[1][i][5];
+				char[currchar].motionString = char[i].motionString;
+				char[currchar].motionPath = char[i].motionPath;
+			}
+		}
 	}
 }
 
@@ -5710,6 +5723,7 @@ function drawLCCharInfo(i, y) {
 							setUndo();
 							myLevelChars[1][i][5].splice(j, 1);
 							char[i].motionString = generateMS(myLevelChars[1][i]);
+							char[i].motionPath = generateMP(myLevelChars[1][i]);
 							levelTimer = 0;
 							resetCharPositions();
 						}
@@ -5747,8 +5761,10 @@ function drawLCCharInfo(i, y) {
 						setUndo();
 						myLevelChars[1][i][5].splice(j, 0, [0, 1]);
 						char[i].motionString = generateMS(myLevelChars[1][i]);
+						char[i].motionPath = generateMP(myLevelChars[1][i]);
 						levelTimer = 0;
 						resetCharPositions();
+						checkCharClans(i);
 					}
 				}
 				// Draw add button
@@ -5777,8 +5793,10 @@ function drawLCCharInfo(i, y) {
 							setUndo();
 							myLevelChars[1][i][5].push([0, 1]);
 							char[i].motionString = generateMS(myLevelChars[1][i]);
+							char[i].motionPath = generateMP(myLevelChars[1][i]);
 							levelTimer = 0;
 							resetCharPositions();
+							checkCharClans(i);
 						}
 					}
 				}
@@ -6120,6 +6138,23 @@ function drawLCChars() {
 			char[i].px = char[i].x;
 			char[i].py = char[i].y;
 			char[i].charMove();
+			osctx5.lineWidth = scale / 9;
+			if(char[i].charState == 4){
+				osctx5.strokeStyle = '#004cffff';
+			}
+			if(char[i].charState == 3){
+				osctx5.strokeStyle = '#ff0000ff';
+			}
+			osctx5.globalAlpha = 0.5;
+			osctx5.beginPath();
+			for (let j = 0; j < char[i].motionPath.length-1; j++) {
+				osctx5.moveTo(char[i].motionPath[j][0]*30, char[i].motionPath[j][1]*30);
+				osctx5.lineTo(char[i].motionPath[j+1][0]*30, char[i].motionPath[j+1][1]*30);
+				//osctx5.moveTo(tlx + char[i].motionPath[j][0] * scale, tly + char[i].motionPath[j][1] * scale / 30);
+				//osctx5.lineTo(tlx + char[i].motionPath[j+1][0] * scale ,tly + char[i].motionPath[j+1][1] * scale / 30);
+			}
+			osctx5.stroke();
+			osctx5.globalAlpha = 1;
 		}
 	}
 	osctx5.restore();
@@ -6138,6 +6173,7 @@ function resetLCChar(i) {
 			];
 			char[i].speed = myLevelChars[1][i][4];
 			char[i].motionString = generateMS(myLevelChars[1][i]);
+			char[i].motionPath = generateMP(myLevelChars[1][i]);
 		} else {
 			myLevelChars[1][i][4] = char[i].speed;
 			myLevelChars[1][i][5] = generateMSOtherFormatted(i);
@@ -6186,6 +6222,7 @@ function cloneChar(charObj) {
 	clone.placed = false;
 	clone.speed = charObj.speed;
 	clone.motionString = Object.values(charObj.motionString);
+	clone.motionPath = Object.values(charObj.motionPath);
 	return clone;
 }
 
@@ -6226,6 +6263,7 @@ function generateCharFromInfo(info) {
 	if (info.length == 6) {
 		newChar.speed = info[4];
 		newChar.motionString = generateMS(info);
+		newChar.motionPath = generateMP(info);
 	}
 	return newChar;
 }
@@ -6499,6 +6537,7 @@ function readLevelString(str) {
 				}
 				myLevelChars[1][e][5].push([d, btm]);
 				char[e].motionString = generateMS(myLevelChars[1][e]);
+				char[e].motionPath = generateMP(myLevelChars[1][e]);
 				char[e].speed = myLevelChars[1][e][4];
 			} else {
 				myLevelChars[1][e][3] = 6;
@@ -6687,6 +6726,7 @@ function readExploreLevelString(str) {
 				}
 				myLevelChars[1][e][5].push([d, btm]);
 				char[e].motionString = generateMS(myLevelChars[1][e]);
+				char[e].motionString = generateMP(myLevelChars[1][e]);
 				char[e].speed = myLevelChars[1][e][4];
 			} else {
 				myLevelChars[1][e][3] = 6;
@@ -6759,6 +6799,19 @@ function generateMS(info) {
 		for (let j = 0; j < a[i][1]; j++) {
 			out.push(a[i][0]);
 		}
+	}
+	return out;
+}
+
+function generateMP(info) {
+	let a = info[5];
+	let xpos = info[1];
+	let ypos = info[2];
+	let out = [[xpos,ypos]];
+	for (let i = 0; i < a.length; i++) {
+		xpos = xpos + cardinal[a[i][0]][0]*a[i][1];
+		ypos = ypos + cardinal[a[i][0]][1]*a[i][1];
+		out.push([xpos,ypos]);
 	}
 	return out;
 }
@@ -8365,7 +8418,7 @@ function draw() {
 			let tabWindowY = (selectedTab + 1) * tabHeight;
 			mouseOnTabWindow = onRect(_xmouse, _ymouse, 660, (selectedTab + 1) * tabHeight, 300, tabWindowH);
 			// Draw Tab Contents
-			switch (selectedTab) {
+			switch (selectedTab) { // WEWE TABS
 				case 0:
 					// Level Info
 					ctx.textAlign = 'right';
@@ -8411,7 +8464,7 @@ function draw() {
 					) {
 						if (mouseIsDown && !pmouseIsDown) myLevelNecessaryDeaths++;
 					}
-					// ctx.fillStyle = '#33ee33';
+					//ctx.fillStyle = '#33ee33';
 					drawAddButton(660 + (cwidth - 660 + necessaryDeathsW) / 2 + 10, tabWindowY + 320, 25, 3);
 					if (
 						onRect(
@@ -8437,11 +8490,26 @@ function draw() {
 					break;
 
 				case 1:
+					if (_keysDown[69]){
+						reorderCharUp = true;
+						e_held_last_frame = true;
+					}else if(e_held_last_frame){
+						reorderCharUp = false;
+					}
+					if (_keysDown[81]){
+						reorderCharDown = true;
+						q_held_last_frame = true;
+					}else if(q_held_last_frame){
+						reorderCharDown = false;
+					}
 					// Entities
 					let charInfoY = (selectedTab + 1) * tabHeight + 5;
 					// TODO: only compute the look up table when it changes
 					let charInfoYLookUp = [];
 					for (let i = 0; i < myLevelChars[1].length; i++) {
+						if(charClans.length>0){
+							checkCharClans(i);
+						}
 						charInfoYLookUp.push(charInfoY);
 						charInfoY += charInfoHeight + 5;
 						if (myLevelChars[1][i][3] == 3 || myLevelChars[1][i][3] == 4)
@@ -8640,6 +8708,7 @@ function draw() {
 							myLevelChars[1][charDropdown][3] = charD[myLevelChars[1][charDropdown][0]][9];
 							if (myLevelChars[1][charDropdown][3] == 3 || myLevelChars[1][charDropdown][3] == 4) {
 								levelTimer = 0;
+								checkCharClans(i);
 								resetCharPositions();
 							}
 							resetLCChar(charDropdown);
@@ -8733,6 +8802,7 @@ function draw() {
 							resetCharPositions();
 							if (mousePressedLastFrame) {
 								char[charDropdown].motionString = generateMS(myLevelChars[1][charDropdown]);
+								char[charDropdown].motionPath = generateMP(myLevelChars[1][charDropdown]);
 								charDropdown = -2;
 							}
 						} else if (charDropdownType == 4) {
@@ -8740,6 +8810,7 @@ function draw() {
 							if (newDire > 3) newDire = 0;
 							myLevelChars[1][charDropdown][5][charDropdownMS][0] = newDire;
 							char[charDropdown].motionString = generateMS(myLevelChars[1][charDropdown]);
+							char[charDropdown].motionPath = generateMP(myLevelChars[1][charDropdown]);
 							levelTimer = 0;
 							resetCharPositions();
 							charDropdown = -2;
@@ -8750,6 +8821,7 @@ function draw() {
 							);
 							if (mousePressedLastFrame) {
 								char[charDropdown].motionString = generateMS(myLevelChars[1][charDropdown]);
+								char[charDropdown].motionPath = generateMP(myLevelChars[1][charDropdown]);
 								levelTimer = 0;
 								resetCharPositions();
 								charDropdown = -2;
@@ -8768,10 +8840,12 @@ function draw() {
 									if (pCharState != 3 && pCharState != 4) {
 										char[charDropdown].speed = myLevelChars[1][charDropdown][4];
 										char[charDropdown].motionString = generateMS(myLevelChars[1][charDropdown]);
+										char[charDropdown].motionPath = generateMP(myLevelChars[1][charDropdown]);
 									}
 								} else {
 									char[charDropdown].speed = 0;
 									char[charDropdown].motionString = [];
+									char[charDropdown].motionPath = [];
 								}
 							}
 							charDropdown = -2;
@@ -9376,11 +9450,11 @@ function draw() {
 			// }
 
 			if (lcPopUp && !lcPopUpNextFrame) {
-				ctx.globalAlpha = 0.2;
-				ctx.fillStyle = '#000000';
-				ctx.fillRect(0, 0, cwidth, cheight);
-				ctx.globalAlpha = 1;
 				if (lcPopUpType == 0) {
+					ctx.globalAlpha = 0.2;
+					ctx.fillStyle = '#000000';
+					ctx.fillRect(0, 0, cwidth, cheight);
+					ctx.globalAlpha = 1;
 					let lcPopUpW = 750;
 					let lcPopUpH = 540;
 					ctx.fillStyle = '#eaeaea';
@@ -9473,82 +9547,6 @@ function draw() {
 							editingTextBox = false;
 							deselectAllTextBoxes();
 							levelLoadString = '';
-						}
-					}
-				} else if (lcPopUpType == 1) {
-					let lcPopUpW = 400;
-					let lcPopUpH = 150;
-					ctx.fillStyle = '#eaeaea';
-					ctx.fillRect((cwidth - lcPopUpW) / 2, (cheight - lcPopUpH) / 2, lcPopUpW, lcPopUpH);
-
-					ctx.fillStyle = '#000000';
-					ctx.font = '20px Helvetica';
-					ctx.textBaseline = 'top';
-					ctx.textAlign = 'left';
-					wrapText(
-						"You have unsaved changes. Are you sure you want to exit the level creator and discard all unsaved changes?",
-						(cwidth - lcPopUpW) / 2 + 10,
-						(cheight - lcPopUpH) / 2 + 5,
-						lcPopUpW - 20,
-						25
-					);
-
-					ctx.font = '18px Helvetica';
-					ctx.textAlign = 'center';
-					ctx.fillStyle = '#00a0ff';
-					ctx.fillRect(
-						(cwidth - lcPopUpW) / 2 + lcPopUpW - 140,
-						(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
-						60,
-						30
-					);
-					ctx.fillStyle = '#ffffff';
-					ctx.fillText(
-						'Cancel',
-						(cwidth - lcPopUpW) / 2 + lcPopUpW - 110,
-						(cheight - lcPopUpH) / 2 + lcPopUpH - 33
-					);
-					ctx.fillStyle = '#a0a0a0';
-					ctx.fillRect(
-						(cwidth - lcPopUpW) / 2 + lcPopUpW - 70,
-						(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
-						60,
-						30
-					);
-					ctx.fillStyle = '#ffffff';
-					ctx.fillText(
-						'Exit',
-						(cwidth - lcPopUpW) / 2 + lcPopUpW - 40,
-						(cheight - lcPopUpH) / 2 + lcPopUpH - 33
-					);
-					if (
-						onRect(
-							_xmouse,
-							_ymouse,
-							(cwidth - lcPopUpW) / 2 + lcPopUpW - 140,
-							(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
-							60,
-							30
-						)
-					) {
-						onButton = true;
-						if (mouseIsDown && !pmouseIsDown) {
-							lcPopUp = false;
-						}
-					} else if (
-						onRect(
-							_xmouse,
-							_ymouse,
-							(cwidth - lcPopUpW) / 2 + lcPopUpW - 70,
-							(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
-							60,
-							30
-						)
-					) {
-						onButton = true;
-						if (mouseIsDown && !pmouseIsDown) {
-							menuScreen = 0;
-							lcPopUp = false;
 						}
 					}
 				}
@@ -9769,7 +9767,7 @@ function draw() {
 						if (exploreLevelPageLevel.difficulty == 7) {
 							showImpossibleNotice = true;
 						}
-					} else ctx.fillStyle = '#333333';
+					} else ctx.fillStyle = '#333333ff';
 					ctx.beginPath();
 					ctx.arc(60, 128, 26, 0, 2 * Math.PI);
 					ctx.closePath();
@@ -10297,6 +10295,12 @@ function getAuthHeader() {
 	return {'Authorization': 'pb_auth=' + localStorage.getItem('5beam_auth')};
 }
 
+let found_level = false;
+let found_level_id = "";
+let wanted_diff = 0;
+let diffs = [];
+let pure_page = [];
+
 function getExplorePage(p, t, s) {
 	requestAdded();
 	return fetch('https://5beam.zelo.dev/api/page?page=' + p + '&sort=' + s + '&type=' + t, {method: 'GET'})
@@ -10304,6 +10308,19 @@ function getExplorePage(p, t, s) {
 			explorePageLevels = await response.json();
 			if (exploreTab == 0) setExploreThumbs();
 			truncateLevelTitles(explorePageLevels,0);
+			requestResolved();
+		})
+		.catch(err => {
+			console.log(err);
+			requestError();
+		});
+}
+
+function getExplorePure(p, t, s) {
+	requestAdded();
+	return fetch('https://5beam.zelo.dev/api/page?page=' + p + '&sort=' + s + '&type=' + t, {method: 'GET'})
+		.then(async response => {
+			explorePageLevels = await response.json();
 			requestResolved();
 		})
 		.catch(err => {
@@ -10517,6 +10534,7 @@ class Character {
 		this.justChanged = 2;
 		this.speed = 0;
 		this.motionString = [];
+		this.motionPath = [];
 		this.buttonsPressed = [];
 		this.pcharState = 0;
 		this.submerged = 0;
