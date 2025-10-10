@@ -57,7 +57,6 @@ let qTimer = 0;
 let inputText = '';
 let textAfterCursorAtClick = '';
 // let controlOrCommandPress = false;
-
 let levelsString = '';
 let levelCount = 53;
 let f = 19;
@@ -96,6 +95,7 @@ const bfdia5b = window.localStorage;
 let deathCount;
 let timer;
 let coins;
+let GradientTiles = [7,15,59,80];
 let longMode = false;
 let quirksMode = false;
 let enableExperimentalFeatures = window.location.hostname==='localhost';
@@ -4039,7 +4039,7 @@ function addTileMovieClip(x, y, context) {
 					tileFrames[y][x].cf = 0;
 				}
 			}
-			if (blockProperties[t][17] && t==15 && gradientAnimations) frame = blockProperties[t][18][(_frameCount+x) % blockProperties[t][18].length];
+			if (blockProperties[t][17] && GradientTiles.includes(t) && gradientAnimations) frame = blockProperties[t][18][(_frameCount-x-y) % blockProperties[t][18].length];
 			// context.fillStyle = '#00ffcc';
 			// context.fillRect(x*30, y*30, 30, 30);
 			if (boundingBoxCheck(cameraX, cameraY, 960, 540, x * 30 + svgTilesVB[t][frame][0], y * 30 + svgTilesVB[t][frame][1], svgTilesVB[t][frame][2], svgTilesVB[t][frame][3])) {
@@ -5262,13 +5262,17 @@ function drawLCTiles() {
 			// 	ctx.restore();
 			// }
 			if (showTile) {
+				let gradientcalc = 0;
+				if(GradientTiles.includes(tile)&&gradientAnimations){
+					gradientcalc = 1;
+				}
 				let img =
 					blockProperties[tile][16] > 1
-						? svgTiles[tile][blockProperties[tile][17] ? _frameCount % blockProperties[tile][16] : 0]
+						? svgTiles[tile][blockProperties[tile][17] ? (_frameCount+((0-x-y)*gradientcalc)) % blockProperties[tile][16] : 0]
 						: svgTiles[tile];
 				let vb =
 					blockProperties[tile][16] > 1
-						? svgTilesVB[tile][blockProperties[tile][17] ? _frameCount % blockProperties[tile][16] : 0]
+						? svgTilesVB[tile][blockProperties[tile][17] ? (_frameCount+((0-x-y)*gradientcalc)) % blockProperties[tile][16] : 0]
 						: svgTilesVB[tile];
 				osctx5.drawImage(
 					img,
@@ -6070,6 +6074,7 @@ function drawLCChars() {
 	for (let i = char.length - 1; i >= 0; i--) {
 		if (char[i].placed || (charDropdown == i && charDropdownType == 2)) {
 			if (!char[i].placed) osctx5.globalAlpha = 0.5;
+			char[i].motionPath = generateMP(myLevelChars[1][i])
 			if (char[i].id < 35) {
 				let model = charModels[char[i].id];
 				let dire = char[i].charState == 9 ? -1 : 1;
@@ -6144,27 +6149,26 @@ function drawLCChars() {
 			}
 			osctx5.globalAlpha = 1;
 		}
-		if (char[i].placed && (char[i].charState == 3 || char[i].charState == 4)) {
-			let section = Math.floor(levelTimer / char[i].speed) % (char[i].motionString.length - 2);
-			char[i].vx = cardinal[char[i].motionString[section + 2]][0] * (30 / char[i].speed);
-			char[i].vy = cardinal[char[i].motionString[section + 2]][1] * (30 / char[i].speed);
-			char[i].px = char[i].x;
-			char[i].py = char[i].y;
-			char[i].charMove();
+		if ((char[i].charState == 3 || char[i].charState == 4)) {
+			if(char[i].placed){	
+				let section = Math.floor(levelTimer / char[i].speed) % (char[i].motionString.length - 2);
+				char[i].vx = cardinal[char[i].motionString[section + 2]][0] * (30 / char[i].speed);
+				char[i].vy = cardinal[char[i].motionString[section + 2]][1] * (30 / char[i].speed);
+				char[i].px = char[i].x;
+				char[i].py = char[i].y;
+				char[i].charMove();
+			}
 			osctx5.lineWidth = scale / 4;
 			if(char[i].charState == 4){
-				osctx5.strokeStyle = '#004cffff';
+				osctx5.strokeStyle = '#004cff7e';
 			}
 			if(char[i].charState == 3){
-				osctx5.strokeStyle = '#ff0000ff';
+				osctx5.strokeStyle = '#ff000091';
 			}
-			osctx5.globalAlpha = 0.5;
 			osctx5.beginPath();
 			for (let j = 0; j < char[i].motionPath.length-1; j++) {
 				osctx5.moveTo(char[i].motionPath[j][0]*30, char[i].motionPath[j][1]*30);
 				osctx5.lineTo(char[i].motionPath[j+1][0]*30, char[i].motionPath[j+1][1]*30);
-				//osctx5.moveTo(tlx + char[i].motionPath[j][0] * scale, tly + char[i].motionPath[j][1] * scale / 30);
-				//osctx5.lineTo(tlx + char[i].motionPath[j+1][0] * scale ,tly + char[i].motionPath[j+1][1] * scale / 30);
 			}
 			osctx5.stroke();
 			osctx5.globalAlpha = 1;
@@ -6817,16 +6821,18 @@ function generateMS(info) {
 }
 
 function generateMP(info) {
-	let a = info[5];
-	let xpos = info[1];
-	let ypos = info[2];
-	let out = [[xpos,ypos]];
-	for (let i = 0; i < a.length; i++) {
-		xpos = xpos + cardinal[a[i][0]][0]*a[i][1];
-		ypos = ypos + cardinal[a[i][0]][1]*a[i][1];
-		out.push([xpos,ypos]);
+	if(info.length>4){
+		let a = info[5];
+		let xpos = info[1];
+		let ypos = info[2];
+		let out = [[xpos,ypos]];
+		for (let i = 0; i < a.length; i++) {
+			xpos = xpos + cardinal[a[i][0]][0]*a[i][1];
+			ypos = ypos + cardinal[a[i][0]][1]*a[i][1];
+			out.push([xpos,ypos]);
+		}
+		return out;
 	}
-	return out;
 }
 
 function generateMSOtherFormatted(c) {
@@ -6850,6 +6856,7 @@ function resetCharPositions() {
 	for (let i = 0; i < myLevelChars[1].length; i++) {
 		char[i].x = myLevelChars[1][i][1] * 30;
 		char[i].y = myLevelChars[1][i][2] * 30;
+		char[i].motionPath = generateMP(myLevelChars[1][i])
 	}
 }
 
@@ -8848,6 +8855,7 @@ function draw() {
 								char[charDropdown].placed = true;
 								levelTimer = 0;
 								resetCharPositions();
+								 
 							} else if (charDropdownType == 1) {
 								if (char[charDropdown].charState == 3 || char[charDropdown].charState == 4) {
 									if (pCharState != 3 && pCharState != 4) {
@@ -9290,10 +9298,10 @@ function draw() {
 				if (i != 8) {
 					if (i == tool || (i == 9 && copied)) ctx.fillStyle = '#999999';
 					else ctx.fillStyle = '#666666';
-					ctx.fillRect(35 + i * 50, 490, 40, 40);
-					ctx.drawImage(svgTools[i==10&&undid?8:i], 35 + i*50, 490, svgTools[i].width/scaleFactor, svgTools[i].height/scaleFactor);
+					ctx.fillRect(55 + i * 50, 490, 40, 40);
+					ctx.drawImage(svgTools[i==10&&undid?8:i], 55 + i*50, 490, svgTools[i].width/scaleFactor, svgTools[i].height/scaleFactor);
 
-					if (!lcPopUp && _ymouse > 480 && onRect(_xmouse, _ymouse, 35 + i * 50, 490, 40, 40)) {
+					if (!lcPopUp && _ymouse > 480 && onRect(_xmouse, _ymouse, 55 + i * 50, 490, 40, 40)) {
 						onButton = true;
 						hoverText = toolNames[i];
 						if (mouseIsDown && !pmouseIsDown) {
