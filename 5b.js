@@ -103,7 +103,8 @@ let screenShake = true;
 let screenFlashes = true;
 let frameRateThrottling = true;
 let slowTintsEnabled = true;
-let optionText = ['Screen Shake','Screen Flashes','Quirks Mode','Experimental Features','Frame Rate Throttling', 'Slow Tints'];
+let gradientAnimations = true;
+let optionText = ['Screen Shake','Screen Flashes','Quirks Mode','Experimental Features','Frame Rate Throttling', 'Slow Tints','Gradient Animations'];
 let levelAlreadySharedToExplore = false;
 let lcSavedLevels;
 let nextLevelId;
@@ -176,7 +177,7 @@ getSavedGame();
 getSavedSettings();
 
 function saveSettings() {
-	bfdia5b.setItem('settings', JSON.stringify([screenShake, screenFlashes, quirksMode, enableExperimentalFeatures, frameRateThrottling, slowTintsEnabled]));
+	bfdia5b.setItem('settings', JSON.stringify([screenShake, screenFlashes, quirksMode, enableExperimentalFeatures, frameRateThrottling, slowTintsEnabled, gradientAnimations]));
 }
 
 function getSavedSettings() {
@@ -190,6 +191,7 @@ function getSavedSettings() {
 		enableExperimentalFeatures = settingsArray[3];
 		frameRateThrottling = settingsArray[4];
 		slowTintsEnabled = settingsArray[5];
+		gradientAnimations = settingsArray[6];
 	}
 }
 
@@ -640,7 +642,7 @@ const blockProperties = [
 	// tile13
 	[false,false,false,false,false,false,false,false,false,false,false,0,0,false,true,true,1,false],
 	[true,true,true,true,false,false,false,false,false,false,false,0,0,true,false,true,1,false],
-	[false,false,false,false,false,false,false,false,false,true,true,0,0,false,false,true,1,false],
+	[false,false,false,false,false,false,false,false,false,false,false,0,0,false,false,true,1,false],
 	[false,true,false,false,false,false,false,false,true,false,false,0,2,false,false,true,1,false],
 	[false,false,false,false,false,false,false,false,true,false,false,0,2,false,false,true,1,false],
 ];
@@ -2178,6 +2180,10 @@ let musicSound = new Audio('data/the fiber 16x loop.wav');
 
 const scaleFactor = 3;
 
+function range(){
+	
+}
+
 // Creates an image object was a base64 src.
 function createImage(base64) {
 	return new Promise((resolve, reject) => {
@@ -2451,7 +2457,12 @@ function myLevelsTextBoxes() {
 }
 
 function menuExitLevelCreator() {
-	menuScreen = 0;
+	if (!lcChangesMade) {
+		menuScreen = 0;
+	} else {
+		lcPopUpNextFrame = true;
+		lcPopUpType = 2;
+	}
 }
 
 function menuExplore() {
@@ -4018,7 +4029,8 @@ function addTileMovieClip(x, y, context) {
 			context.drawImage(svgTiles[t], x * 30 + svgTilesVB[t][0], y * 30 + svgTilesVB[t][1], svgTiles[t].width / scaleFactor, svgTiles[t].height / scaleFactor);
 		} else if (blockProperties[t][16] > 1) {
 			let frame = 0;
-			if (blockProperties[t][17]) frame = blockProperties[t][18][_frameCount % blockProperties[t][18].length];
+			// handling the gradient for burner tile
+			if ((blockProperties[t][17] && t!=15)||t==15 && !gradientAnimations) frame = blockProperties[t][18][_frameCount % blockProperties[t][18].length];
 			else {
 				frame = tileFrames[y][x].cf;
 				if (tileFrames[y][x].playing) tileFrames[y][x].cf++;
@@ -4027,6 +4039,7 @@ function addTileMovieClip(x, y, context) {
 					tileFrames[y][x].cf = 0;
 				}
 			}
+			if (blockProperties[t][17] && t==15 && gradientAnimations) frame = blockProperties[t][18][(_frameCount+x) % blockProperties[t][18].length];
 			// context.fillStyle = '#00ffcc';
 			// context.fillRect(x*30, y*30, 30, 30);
 			if (boundingBoxCheck(cameraX, cameraY, 960, 540, x * 30 + svgTilesVB[t][frame][0], y * 30 + svgTilesVB[t][frame][1], svgTilesVB[t][frame][2], svgTilesVB[t][frame][3])) {
@@ -6138,7 +6151,7 @@ function drawLCChars() {
 			char[i].px = char[i].x;
 			char[i].py = char[i].y;
 			char[i].charMove();
-			osctx5.lineWidth = scale / 9;
+			osctx5.lineWidth = scale / 4;
 			if(char[i].charState == 4){
 				osctx5.strokeStyle = '#004cffff';
 			}
@@ -9549,9 +9562,160 @@ function draw() {
 							levelLoadString = '';
 						}
 					}
+				} else if (lcPopUpType == 1) {
+					let lcPopUpW = 400;
+					let lcPopUpH = 150;
+					ctx.fillStyle = '#eaeaea';
+					ctx.fillRect((cwidth - lcPopUpW) / 2, (cheight - lcPopUpH) / 2, lcPopUpW, lcPopUpH);
+
+					ctx.fillStyle = '#000000';
+					ctx.font = '20px Helvetica';
+					ctx.textBaseline = 'top';
+					ctx.textAlign = 'left';
+					wrapText(
+						"You have unsaved changes. Are you sure you want to exit the level creator and discard all unsaved changes?",
+						(cwidth - lcPopUpW) / 2 + 10,
+						(cheight - lcPopUpH) / 2 + 5,
+						lcPopUpW - 20,
+						25
+					);
+
+					ctx.font = '18px Helvetica';
+					ctx.textAlign = 'center';
+					ctx.fillStyle = '#00a0ff';
+					ctx.fillRect(
+						(cwidth - lcPopUpW) / 2 + lcPopUpW - 140,
+						(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
+						60,
+						30
+					);
+					ctx.fillStyle = '#ffffff';
+					ctx.fillText(
+						'Cancel',
+						(cwidth - lcPopUpW) / 2 + lcPopUpW - 110,
+						(cheight - lcPopUpH) / 2 + lcPopUpH - 33
+					);
+					ctx.fillStyle = '#a0a0a0';
+					ctx.fillRect(
+						(cwidth - lcPopUpW) / 2 + lcPopUpW - 70,
+						(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
+						60,
+						30
+					);
+					ctx.fillStyle = '#ffffff';
+					ctx.fillText(
+						'Exit',
+						(cwidth - lcPopUpW) / 2 + lcPopUpW - 40,
+						(cheight - lcPopUpH) / 2 + lcPopUpH - 33
+					);
+					if (
+						onRect(
+							_xmouse,
+							_ymouse,
+							(cwidth - lcPopUpW) / 2 + lcPopUpW - 140,
+							(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
+							60,
+							30
+						)
+					) {
+						onButton = true;
+						if (mouseIsDown && !pmouseIsDown) {
+							lcPopUp = false;
+						}
+					} else if (
+						onRect(
+							_xmouse,
+							_ymouse,
+							(cwidth - lcPopUpW) / 2 + lcPopUpW - 70,
+							(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
+							60,
+							30
+						)
+					) {
+						onButton = true;
+						if (mouseIsDown && !pmouseIsDown) {
+							menuScreen = 0;
+							lcPopUp = false;
+						}
+					}
+				} else if (lcPopUpType == 2) {
+					let lcPopUpW = 600;
+					let lcPopUpH = 300;
+					ctx.fillStyle = '#eaeaea';
+					ctx.fillRect((cwidth - lcPopUpW) / 2, (cheight - lcPopUpH) / 2, lcPopUpW, lcPopUpH);
+
+					ctx.fillStyle = '#000000';
+					ctx.font = '20px Helvetica';
+					ctx.textBaseline = 'top';
+					ctx.textAlign = 'left';
+					wrapText(
+						"You heavent played 5osc? would you like to download it now?",
+						(cwidth - lcPopUpW) / 2 + 10,
+						(cheight - lcPopUpH) / 2 + 5,
+						lcPopUpW - 20,
+						25
+					);
+
+					ctx.font = '18px Helvetica';
+					ctx.textAlign = 'center';
+					ctx.fillStyle = '#00a0ff';
+					ctx.fillRect(
+						(cwidth - lcPopUpW) / 2 + lcPopUpW - 140,
+						(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
+						60,
+						30
+					);
+					ctx.fillStyle = '#ffffff';
+					ctx.fillText(
+						'Yes',
+						(cwidth - lcPopUpW) / 2 + lcPopUpW - 110,
+						(cheight - lcPopUpH) / 2 + lcPopUpH - 33
+					);
+					ctx.fillStyle = '#a0a0a0';
+					ctx.fillRect(
+						(cwidth - lcPopUpW) / 2 + lcPopUpW - 70,
+						(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
+						60,
+						30
+					);
+					ctx.fillStyle = '#ffffff';
+					ctx.fillText(
+						'Yes',
+						(cwidth - lcPopUpW) / 2 + lcPopUpW - 40,
+						(cheight - lcPopUpH) / 2 + lcPopUpH - 33
+					);
+					if (
+						onRect(
+							_xmouse,
+							_ymouse,
+							(cwidth - lcPopUpW) / 2 + lcPopUpW - 140,
+							(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
+							60,
+							30
+						)
+					) {
+						onButton = true;
+						if (mouseIsDown && !pmouseIsDown) {
+							lcPopUp = false;
+						}
+					} else if (
+						onRect(
+							_xmouse,
+							_ymouse,
+							(cwidth - lcPopUpW) / 2 + lcPopUpW - 70,
+							(cheight - lcPopUpH) / 2 + lcPopUpH - 40,
+							60,
+							30
+						)
+					) {
+						onButton = true;
+						if (mouseIsDown && !pmouseIsDown) {
+							menuScreen = 0;
+							lcPopUp = false;
+						}
+					}
 				}
 			}
-
 			if (lcMessageTimer > 0) {
 				if (lcMessageTimer > 50) ctx.globalAlpha = (100 - lcMessageTimer) / 50;
 				ctx.font = '25px Helvetica';
@@ -9925,7 +10089,7 @@ function draw() {
 			ctx.font = '26px Helvetica';
 
 			for (var i = 0; i < optionText.length; i++) {
-				let y = i*50 + 150;
+				let y = i*50 + 50;
 				ctx.fillStyle = '#444444';
 				ctx.fillRect(590, y, 50, 28);
 				ctx.fillStyle = '#ffffff';
@@ -9951,6 +10115,9 @@ function draw() {
 						break;
 					case 5:
 						thisOptionValue = slowTintsEnabled;
+						break;
+					case 6:
+						thisOptionValue = gradientAnimations;
 				}
 				ctx.fillStyle = thisOptionValue?'#00ff00':'#ff0000';
 				ctx.fillText(thisOptionValue?'on':'off', 615, y+2);
@@ -9976,6 +10143,9 @@ function draw() {
 								break;
 							case 5:
 								slowTintsEnabled = !slowTintsEnabled;
+								break;
+							case 6:
+								gradientAnimations = !gradientAnimations;
 								break;
 						}
 					}
