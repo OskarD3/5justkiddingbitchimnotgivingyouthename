@@ -1972,8 +1972,11 @@ let addButtonPressed = false;
 let duplicateChar = false;
 let reorderCharUp = false;
 let reorderCharDown = false;
+let GroupMode = false;
+let SelectedGroup = 0;
 let reorderDiaUp = false;
 let reorderDiaDown = false;
+let editorPaused = false;
 let levelLoadString = '';
 let lcMessageTimer = 0;
 let lcMessageText = '';
@@ -2032,8 +2035,10 @@ let exploreOldLevelData = {};
 let previousMenuExplore = 0;
 let exploreUser;
 let exploreUserPageNumbers = [];
+let exploreFeatured = false;
 let exploreSortText = ['new','old','plays'];
 let exploreSortTextWidth = 160;
+let exploreFeatTextWidth = 160;
 let loggedInExploreUser5beamID = -1; // Temporarily just being used for checking if the user is logged in.
 let exploreLevelTitlesTruncated = new Array(8);
 let exploreLoading = false;
@@ -2263,6 +2268,7 @@ async function loadingScreen() {
 	svgCoin = await createImage(resourceData['wintoken.svg']);
 	svgIceCubeMelt = await createImage(resourceData['effects/icecubemelt.svg']);
 	svgIceCubeMelt = await createImage(resourceData['effects/icecubemelt.svg']);
+	svgGroupIcon = await createImage(resourceData['lc/group.svg']);
 	for (let i = 0; i < imgBgs.length; i++) {
 		imgBgs[i] = await createImage(resourceData['bg/bg' + i.toString().padStart(4, '0') + '.png']);
 	}
@@ -2378,7 +2384,7 @@ function setHoverText() {
 }
 
 function menuWatchA() {
-	window.open('https://www.youtube.com/watch?v=4q77g4xo9ic');
+	window.open(vids[randy][1]);
 }
 
 function menuWatchC() {
@@ -2733,10 +2739,21 @@ function exitLevel() {
 	menuScreen = 2;
 }
 
+let vids = [
+//	["MEGAMIND","https://drive.google.com/file/d/1B04UaUyL4uif5hbPrGjDMT_97TgtHDk0/view"],
+//	["SIMPLEFLIPS","https://www.youtube.com/@SimpleFlips"],
+	["CENTRAL","https://discord.gg/ZbvEMagsR2"]
+//	["OARQ","https://yoylespartan.itch.io/oarq"],
+//	["A BETTER GAME","http://slither.com/io"]
+];
+
+let randy = 0;
+
 function playGame() {
 	menuScreen = 0;
 	musicSound.play();
 	musicSound.loop = true;
+	randy = Math.floor(Math.random() * vids.length);
 }
 
 function testLevelCreator() {
@@ -2925,8 +2942,7 @@ function drawMenu() {
 	ctx.textAlign = 'left';
 	ctx.font = '20px Helvetica';
 
-	if (levelProgress > 99) drawMenu0Button('WATCH BFDIA 5c', 665.55, 303.75, false, menuWatchC);
-	else drawMenu0Button('WATCH BFDIA 5a', 665.55, 303.75, false, menuWatchA);
+	drawMenu0Button('5B '+vids[randy][0], 665.55, 303.75, false, menuWatchA);
 	if (showingNewGame2) {
 		drawRoundedRect('#ffffff', 665.5, 81, 273, 72.95, 15);
 		ctx.font = '20px Helvetica';
@@ -5414,13 +5430,24 @@ function copyRect() {
 }
 
 function checkCharClans(i) {
+	cnf = false;
+	cnf_group = -1;
 	for (let j = 0; j < charClans.length; j++) {
-		if(charClans[j][0]==i){
-			for (let k = 0; k < charClans[j].length-1; k++) {
-				let currchar = charClans[j][k+1];
+		for (let k = 0; k < charClans[j].length; k++) {
+			if(charClans[j][k]==i){
+				cnf = true;
+				cnf_group = j;
+			}
+		}
+	}
+	if(cnf==true){
+		for (let k = 0; k < charClans[cnf_group].length; k++) {
+			let currchar = charClans[cnf_group][k];
+			if(myLevelChars[1][currchar].length>5){
 				myLevelChars[1][currchar][5] = myLevelChars[1][i][5];
 				char[currchar].motionString = char[i].motionString;
 				char[currchar].motionPath = char[i].motionPath;
+				char[currchar].speed = char[i].speed;
 			}
 		}
 	}
@@ -5613,214 +5640,261 @@ function setEndGateLights() {
 	}
 }
 
-function drawLCCharInfo(i, y) {
-	ctx.fillStyle = '#626262';
-	ctx.fillRect(665, y, 240, charInfoHeight);
-	ctx.fillStyle = '#808080';
-	ctx.fillRect(665, y, charInfoHeight, charInfoHeight);
-	ctx.fillStyle = '#808080';
-	ctx.fillRect(665 + 240 - charInfoHeight * 1.5, y, charInfoHeight * 1.5, charInfoHeight);
-	let charimgmat = charModels[myLevelChars[1][i][0]].charimgmat;
-	if (typeof charimgmat !== 'undefined') {
-		let charimg = svgChars[myLevelChars[1][i][0]];
-		if (Array.isArray(charimg)) charimg = charimg[0];
-		let sc = charInfoHeight / 32;
-		ctx.save();
-		ctx.transform(
-			charimgmat.a * sc,
-			charimgmat.b,
-			charimgmat.c,
-			charimgmat.d * sc,
-			(charimgmat.tx * sc) / 2 + 665 + charInfoHeight / 2,
-			(charimgmat.ty * sc) / 2 + y + charInfoHeight / 2
-		);
-		ctx.drawImage(charimg, -charimg.width / (scaleFactor*2), -charimg.height / (scaleFactor*2), charimg.width / scaleFactor, charimg.height / scaleFactor);
-		ctx.restore();
-	}
-	ctx.fillStyle = '#ffffff';
-	ctx.fillText(
-		twoDecimalPlaceNumFormat(Math.max(myLevelChars[1][i][1], 0)) +
-			', ' +
-			twoDecimalPlaceNumFormat(Math.max(myLevelChars[1][i][2], 0)),
-		665 + charInfoHeight + 5,
-		y + charInfoHeight / 2
-	);
-	ctx.fillText(
-		charStateNamesShort[myLevelChars[1][i][3]],
-		665 + 240 - charInfoHeight * 1.5 + 5,
-		y + charInfoHeight / 2
-	);
+let groupcols = [
+	['#ff9e9eff','rgba(149, 66, 66, 1)','#ff7c7cff'],
+	['#ffbd9eff','rgba(149, 89, 66, 1)','#ff9d7cff'],
+	['#c6be82ff','#b5ac4dff','#fff79aff'],
+	['#a6ff9eff','rgba(96, 149, 66, 1)','#7cff7cff'],
+	['#386354ff','#51756cff','#417967ff'],
+	['#9ef9ffff','rgba(66, 143, 149, 1)','#7cfbffff'],
+	['#19268aff','rgba(0, 3, 78, 1)','#2b42a9ff'],
+	['#9eabffff','rgba(66, 80, 149, 1)','#857cffff'],
+	['#da9effff','rgba(117, 66, 149, 1)','#d87cffff'],
+	['#ff9ecfff','rgba(149, 66, 124, 1)','#ff7cc2ff'],
+	['#ff0000ff','rgba(110, 0, 0, 1)','#ff0000ff'],
+	['#ff5500ff','rgba(110, 40, 0, 1)','#ff4800ff'],
+	['#ffd000ff','rgba(110, 101, 0, 1)','#ffff00ff'],
+	['#2fff00ff','rgba(0, 110, 4, 1)','#00ff11ff'],
+	['#00fffbff','rgba(0, 110, 104, 1)','#00fff2ff'],
+	['#4800ffff','rgba(0, 5, 110, 1)','#0004ffff'],
+	['#dd00ffff','rgba(110, 0, 97, 1)','#ff00eaff'],
+	['#ff0062ff','rgba(110, 0, 77, 1)','#ff007bff'],
+	['#030303ff','rgba(0, 0, 0, 1)','#000000ff'],
+	['#813400ff','#411a00ff','#813400ff'],
+	['#610000ff','#300000ff','#520000ff'],
+]
 
-	if (myLevelChars[1][i][3] == 3 || myLevelChars[1][i][3] == 4) {
-		ctx.fillStyle = '#808080';
-		ctx.fillRect(665, y + charInfoHeight, charInfoHeight, diaInfoHeight);
-		ctx.fillStyle = '#ffffff';
-		ctx.fillText(char[i].speed.toString().padStart(2, '0'), 665 + 5, y + charInfoHeight + diaInfoHeight * 0.5);
-		let canDropDown =
-			mouseOnTabWindow &&
-			!lcPopUp &&
-			charDropdown == -1 &&
-			!duplicateChar &&
-			!reorderCharUp &&
-			!reorderCharDown &&
-			!addButtonPressed;
-		if (
-			canDropDown &&
-			onRect(_xmouse, _ymouse + charsTabScrollBar, 665, y + charInfoHeight, charInfoHeight, diaInfoHeight)
-		) {
-			onButton = true;
-			hoverText = 'Movement Speed';
-			if (mouseIsDown && !pmouseIsDown) {
-				setUndo();
-				charDropdown = -i - 3;
-				charDropdownType = 3;
-				valueAtClick = char[i].speed;
+function drawLCCharInfo(i, y) {
+	checked = false;
+	if(charClans.length>0){
+		for(let group = 0; group<charClans.length; group++){
+			if((i>charClans.length-1&&charClans[group].includes(i-charClans.length))||(i<charClans.length && i==group)){
+				ctx.fillStyle = groupcols[group][1];
+				ctx.fillRect(665, y, 240, charInfoHeight);
+				ctx.fillStyle = groupcols[group][0];
+				ctx.fillRect(665, y, charInfoHeight, charInfoHeight);
+				ctx.fillStyle = groupcols[group][2];
+				ctx.fillRect(665 + 240 - charInfoHeight * 1.5, y, charInfoHeight * 1.5, charInfoHeight);
+				checked = true;
+			}else if(checked==false){
+				ctx.fillStyle = '#626262';
+				ctx.fillRect(665, y, 240, charInfoHeight);
+				ctx.fillStyle = '#808080';
+				ctx.fillRect(665, y, charInfoHeight, charInfoHeight);
+				ctx.fillStyle = '#808080';
+				ctx.fillRect(665 + 240 - charInfoHeight * 1.5, y, charInfoHeight * 1.5, charInfoHeight);
 			}
 		}
-
-		let drawingDeleteButtons = myLevelChars[1][i][5].length > 1;
-
-		for (let j = 0; j < myLevelChars[1][i][5].length; j++) {
-			ctx.fillStyle = '#626262';
-			ctx.fillRect(
-				665 + charInfoHeight,
-				y + charInfoHeight + diaInfoHeight * j,
-				100 - charInfoHeight,
-				diaInfoHeight
+	}else{
+		ctx.fillStyle = '#626262';
+		ctx.fillRect(665, y, 240, charInfoHeight);
+		ctx.fillStyle = '#808080';
+		ctx.fillRect(665, y, charInfoHeight, charInfoHeight);
+		ctx.fillStyle = '#808080';
+		ctx.fillRect(665 + 240 - charInfoHeight * 1.5, y, charInfoHeight * 1.5, charInfoHeight);
+	}
+	if(i>charClans.length-1){
+		i_after = i-charClans.length;
+		let charimgmat = charModels[myLevelChars[1][i_after][0]].charimgmat;
+		if (typeof charimgmat !== 'undefined') {
+			let charimg = svgChars[myLevelChars[1][i_after][0]];
+			if (Array.isArray(charimg)) charimg = charimg[0];
+			let sc = charInfoHeight / 32;
+			ctx.save();
+			ctx.transform(
+				charimgmat.a * sc,
+				charimgmat.b,
+				charimgmat.c,
+				charimgmat.d * sc,
+				(charimgmat.tx * sc) / 2 + 665 + charInfoHeight / 2,
+				(charimgmat.ty * sc) / 2 + y + charInfoHeight / 2
 			);
+			ctx.drawImage(charimg, -charimg.width / (scaleFactor*2), -charimg.height / (scaleFactor*2), charimg.width / scaleFactor, charimg.height / scaleFactor);
+			ctx.restore();
+		}
+		ctx.fillStyle = '#ffffff';
+		ctx.fillText(
+			twoDecimalPlaceNumFormat(Math.max(myLevelChars[1][i_after][1], 0)) +
+				', ' +
+				twoDecimalPlaceNumFormat(Math.max(myLevelChars[1][i_after][2], 0)),
+			665 + charInfoHeight + 5,
+			y + charInfoHeight / 2
+		);
+		ctx.fillText(
+			charStateNamesShort[myLevelChars[1][i_after][3]],
+			665 + 240 - charInfoHeight * 1.5 + 5,
+			y + charInfoHeight / 2
+		);
+
+		if (myLevelChars[1][i_after][3] == 3 || myLevelChars[1][i_after][3] == 4) {
+			ctx.fillStyle = '#808080';
+			ctx.fillRect(665, y + charInfoHeight, charInfoHeight, diaInfoHeight);
 			ctx.fillStyle = '#ffffff';
-			ctx.fillText(
-				direLetters[myLevelChars[1][i][5][j][0]],
-				665 + charInfoHeight + 5,
-				y + charInfoHeight + diaInfoHeight * (j + 0.5),
-				240 - charInfoHeight,
-				charInfoHeight
-			);
-			ctx.fillText(
-				myLevelChars[1][i][5][j][1],
-				665 + charInfoHeight * 1.5 + 5,
-				y + charInfoHeight + diaInfoHeight * (j + 0.5),
-				240 - charInfoHeight,
-				charInfoHeight
-			);
-
-			if (canDropDown) {
-				if (
-					onRect(
-						_xmouse,
-						_ymouse + charsTabScrollBar,
-						665 + charInfoHeight,
-						y + charInfoHeight + diaInfoHeight * j,
-						120 - charInfoHeight,
-						diaInfoHeight
-					)
-				) {
-					if (_xmouse < 665 + charInfoHeight * 1.5) {
-						onButton = true;
-						hoverText = 'Direction';
-						if (mouseIsDown && !pmouseIsDown) {
-							setUndo();
-							charDropdown = -i - 3;
-							charDropdownType = 4;
-							charDropdownMS = j;
-						}
-					} else if (_xmouse < 665 + charInfoHeight + 100 - charInfoHeight) {
-						onButton = true;
-						hoverText = 'Block Count';
-						if (mouseIsDown && !pmouseIsDown) {
-							setUndo();
-							charDropdown = -i - 3;
-							charDropdownType = 5;
-							charDropdownMS = j;
-							valueAtClick = myLevelChars[1][i][5][j][1];
-						}
-					} else if (drawingDeleteButtons) {
-						onButton = true;
-						if (mouseIsDown && !pmouseIsDown) {
-							setUndo();
-							myLevelChars[1][i][5].splice(j, 1);
-							char[i].motionString = generateMS(myLevelChars[1][i]);
-							char[i].motionPath = generateMP(myLevelChars[1][i]);
-							levelTimer = 0;
-							resetCharPositions();
-						}
-					}
-					if (drawingDeleteButtons) {
-						// ctx.fillStyle = '#ee3333';
-						drawRemoveButton(
-							665 + charInfoHeight + 100 - charInfoHeight,
-							y + charInfoHeight + diaInfoHeight * j,
-							diaInfoHeight,
-							3
-						);
-						// ctx.fillRect(665 + charInfoHeight + 100-charInfoHeight, y + charInfoHeight + diaInfoHeight * j, diaInfoHeight, diaInfoHeight);
-					}
-				} else if (
-					j > 0 &&
-					onRect(
-						_xmouse,
-						_ymouse + charsTabScrollBar,
-						665 + charInfoHeight + 120 - charInfoHeight,
-						y + charInfoHeight + diaInfoHeight * (j - 0.5),
-						diaInfoHeight,
-						diaInfoHeight
-					)
-				) {
-					drawAddButton(
-						665 + charInfoHeight + 120 - charInfoHeight,
-						y + charInfoHeight + diaInfoHeight * (j - 0.5),
-						diaInfoHeight,
-						3
-					);
-					onButton = true;
-					hoverText = 'Insert Into Path';
-					if (mouseIsDown && !pmouseIsDown) {
-						setUndo();
-						myLevelChars[1][i][5].splice(j, 0, [0, 1]);
-						char[i].motionString = generateMS(myLevelChars[1][i]);
-						char[i].motionPath = generateMP(myLevelChars[1][i]);
-						levelTimer = 0;
-						resetCharPositions();
-						checkCharClans(i);
-					}
+			ctx.fillText(char[i_after].speed.toString().padStart(2, '0'), 665 + 5, y + charInfoHeight + diaInfoHeight * 0.5);
+			let canDropDown =
+				mouseOnTabWindow &&
+				!lcPopUp &&
+				charDropdown == -1 &&
+				!duplicateChar &&
+				!reorderCharUp &&
+				!reorderCharDown &&
+				!addButtonPressed;
+			if (
+				canDropDown &&
+				onRect(_xmouse, _ymouse + charsTabScrollBar, 665, y + charInfoHeight, charInfoHeight, diaInfoHeight)
+			) {
+				onButton = true;
+				hoverText = 'Movement Speed';
+				if (mouseIsDown && !pmouseIsDown) {
+					setUndo();
+					charDropdown = -i_after - 3;
+					charDropdownType = 3;
+					valueAtClick = char[i_after].speed;
 				}
-				// Draw add button
-				if (j == myLevelChars[1][i][5].length - 1) {
-					// ctx.fillStyle = '#33ee33';
-					drawAddButton(
-						665 + 240 - charInfoHeight * 1.5,
-						y + charInfoHeight + diaInfoHeight * j,
-						diaInfoHeight,
-						3
-					);
-					// ctx.fillRect((665+240)-charInfoHeight*1.5, y + charInfoHeight + diaInfoHeight * j, diaInfoHeight, diaInfoHeight);
+			}
+
+			let drawingDeleteButtons = myLevelChars[1][i_after][5].length > 1;
+
+			for (let j = 0; j < myLevelChars[1][i_after][5].length; j++) {
+				ctx.fillStyle = '#626262';
+				ctx.fillRect(
+					665 + charInfoHeight,
+					y + charInfoHeight + diaInfoHeight * j,
+					100 - charInfoHeight,
+					diaInfoHeight
+				);
+				ctx.fillStyle = '#ffffff';
+				ctx.fillText(
+					direLetters[myLevelChars[1][i_after][5][j][0]],
+					665 + charInfoHeight + 5,
+					y + charInfoHeight + diaInfoHeight * (j + 0.5),
+					240 - charInfoHeight,
+					charInfoHeight
+				);
+				ctx.fillText(
+					myLevelChars[1][i_after][5][j][1],
+					665 + charInfoHeight * 1.5 + 5,
+					y + charInfoHeight + diaInfoHeight * (j + 0.5),
+					240 - charInfoHeight,
+					charInfoHeight
+				);
+
+				if (canDropDown) {
 					if (
 						onRect(
 							_xmouse,
 							_ymouse + charsTabScrollBar,
-							665 + 240 - charInfoHeight * 1.5,
+							665 + charInfoHeight,
 							y + charInfoHeight + diaInfoHeight * j,
+							120 - charInfoHeight,
+							diaInfoHeight
+						)
+					) {
+						if (_xmouse < 665 + charInfoHeight * 1.5) {
+							onButton = true;
+							hoverText = 'Direction';
+							if (mouseIsDown && !pmouseIsDown) {
+								setUndo();
+								charDropdown = -i_after - 3;
+								charDropdownType = 4;
+								charDropdownMS = j;
+							}
+						} else if (_xmouse < 665 + charInfoHeight + 100 - charInfoHeight) {
+							onButton = true;
+							hoverText = 'Block Count';
+							if (mouseIsDown && !pmouseIsDown) {
+								setUndo();
+								charDropdown = -i_after - 3;
+								charDropdownType = 5;
+								charDropdownMS = j;
+								valueAtClick = myLevelChars[1][i_after][5][j][1];
+							}
+						} else if (drawingDeleteButtons) {
+							onButton = true;
+							if (mouseIsDown && !pmouseIsDown) {
+								setUndo();
+								myLevelChars[1][i_after][5].splice(j, 1);
+								char[i_after].motionString = generateMS(myLevelChars[1][i_after]);
+								char[i_after].motionPath = generateMP(myLevelChars[1][i_after]);
+								levelTimer = 0;
+								resetCharPositions();
+							}
+						}
+						if (drawingDeleteButtons) {
+							// ctx.fillStyle = '#ee3333';
+							drawRemoveButton(
+								665 + charInfoHeight + 100 - charInfoHeight,
+								y + charInfoHeight + diaInfoHeight * j,
+								diaInfoHeight,
+								3
+							);
+							// ctx.fillRect(665 + charInfoHeight + 100-charInfoHeight, y + charInfoHeight + diaInfoHeight * j, diaInfoHeight, diaInfoHeight);
+						}
+					} else if (
+						j > 0 &&
+						onRect(
+							_xmouse,
+							_ymouse + charsTabScrollBar,
+							665 + charInfoHeight + 120 - charInfoHeight,
+							y + charInfoHeight + diaInfoHeight * (j - 0.5),
 							diaInfoHeight,
 							diaInfoHeight
 						)
 					) {
+						drawAddButton(
+							665 + charInfoHeight + 120 - charInfoHeight,
+							y + charInfoHeight + diaInfoHeight * (j - 0.5),
+							diaInfoHeight,
+							3
+						);
 						onButton = true;
-						hoverText = 'Add to Path';
+						hoverText = 'Insert Into Path';
 						if (mouseIsDown && !pmouseIsDown) {
 							setUndo();
-							myLevelChars[1][i][5].push([0, 1]);
-							char[i].motionString = generateMS(myLevelChars[1][i]);
-							char[i].motionPath = generateMP(myLevelChars[1][i]);
+							myLevelChars[1][i_after][5].splice(j, 0, [0, 1]);
+							char[i_after].motionString = generateMS(myLevelChars[1][i_after]);
+							char[i_after].motionPath = generateMP(myLevelChars[1][i_after]);
 							levelTimer = 0;
 							resetCharPositions();
-							checkCharClans(i);
+							checkCharClans(i_after);
+						}
+					}
+					// Draw add button
+					if (j == myLevelChars[1][i_after][5].length - 1) {
+						// ctx.fillStyle = '#33ee33';
+						drawAddButton(
+							665 + 240 - charInfoHeight * 1.5,
+							y + charInfoHeight + diaInfoHeight * j,
+							diaInfoHeight,
+							3
+						);
+						// ctx.fillRect((665+240)-charInfoHeight*1.5, y + charInfoHeight + diaInfoHeight * j, diaInfoHeight, diaInfoHeight);
+						if (
+							onRect(
+								_xmouse,
+								_ymouse + charsTabScrollBar,
+								665 + 240 - charInfoHeight * 1.5,
+								y + charInfoHeight + diaInfoHeight * j,
+								diaInfoHeight,
+								diaInfoHeight
+							)
+						) {
+							onButton = true;
+							hoverText = 'Add to Path';
+							if (mouseIsDown && !pmouseIsDown) {
+								setUndo();
+								myLevelChars[1][i_after][5].push([0, 1]);
+								char[i_after].motionString = generateMS(myLevelChars[1][i_after]);
+								char[i_after].motionPath = generateMP(myLevelChars[1][i_after]);
+								levelTimer = 0;
+								resetCharPositions();
+								checkCharClans(i_after);
+							}
 						}
 					}
 				}
 			}
 		}
-	}
-
 	if (
 		mouseOnTabWindow &&
 		!lcPopUp &&
@@ -5831,12 +5905,12 @@ function drawLCCharInfo(i, y) {
 		if (duplicateChar) {
 			if (mouseIsDown && !pmouseIsDown) {
 				setUndo();
-				char.splice(i + 1, 0, cloneChar(char[i]));
-				myLevelChars[1].splice(i + 1, 0, cloneCharInfo(myLevelChars[1][i], true));
+				char.splice(i_after + 1, 0, cloneChar(char[i_after]));
+				myLevelChars[1].splice(i_after + 1, 0, cloneCharInfo(myLevelChars[1][i_after], true));
 				// Update dialogue tab
 				for (let j = myLevelDialogue[1].length - 1; j >= 0; j--) {
 					if (myLevelDialogue[1][j].char < 50) {
-						if (myLevelDialogue[1][j].char > i) {
+						if (myLevelDialogue[1][j].char > i_after) {
 							myLevelDialogue[1][j].char++;
 						}
 					}
@@ -5845,16 +5919,16 @@ function drawLCCharInfo(i, y) {
 			}
 		} else if (reorderCharDown) {
 			if (mouseIsDown && !pmouseIsDown) {
-				if (i < myLevelChars[1].length - 1) {
+				if (i_after < myLevelChars[1].length - 1) {
 					setUndo();
-					[char[i], char[i + 1]] = [char[i + 1], char[i]];
-					[myLevelChars[1][i], myLevelChars[1][i + 1]] = [myLevelChars[1][i + 1], myLevelChars[1][i]];
+					[char[i_after], char[i_after + 1]] = [char[i_after + 1], char[i_after]];
+					[myLevelChars[1][i_after], myLevelChars[1][i_after + 1]] = [myLevelChars[1][i_after + 1], myLevelChars[1][i_after]];
 					// Update dialogue tab
 					for (let j = myLevelDialogue[1].length - 1; j >= 0; j--) {
 						if (myLevelDialogue[1][j].char < 50) {
-							if (myLevelDialogue[1][j].char == i) {
+							if (myLevelDialogue[1][j].char == i_after) {
 								myLevelDialogue[1][j].char++;
-							} else if (myLevelDialogue[1][j].char == i + 1) {
+							} else if (myLevelDialogue[1][j].char == i_after + 1) {
 								myLevelDialogue[1][j].char--;
 							}
 						}
@@ -5864,22 +5938,36 @@ function drawLCCharInfo(i, y) {
 			}
 		} else if (reorderCharUp) {
 			if (mouseIsDown && !pmouseIsDown) {
-				if (i > 0) {
+				if (i_after > 0) {
 					setUndo();
-					[char[i], char[i - 1]] = [char[i - 1], char[i]];
-					[myLevelChars[1][i], myLevelChars[1][i - 1]] = [myLevelChars[1][i - 1], myLevelChars[1][i]];
+					[char[i_after], char[i_after - 1]] = [char[i_after - 1], char[i_after]];
+					[myLevelChars[1][i_after], myLevelChars[1][i_after - 1]] = [myLevelChars[1][i_after - 1], myLevelChars[1][i_after]];
 					// Update dialogue tab
 					for (let j = myLevelDialogue[1].length - 1; j >= 0; j--) {
 						if (myLevelDialogue[1][j].char < 50) {
-							if (myLevelDialogue[1][j].char == i) {
+							if (myLevelDialogue[1][j].char == i_after) {
 								myLevelDialogue[1][j].char--;
-							} else if (myLevelDialogue[1][j].char == i - 1) {
+							} else if (myLevelDialogue[1][j].char == i_after - 1) {
 								myLevelDialogue[1][j].char++;
 							}
 						}
 					}
 				}
 				reorderCharUp = false;
+			}
+		} else if (GroupMode){
+			if (mouseIsDown && !pmouseIsDown){
+				if(charClans[SelectedGroup].includes(i_after)){
+					index_of_thing = charClans.indexOf(i_after);
+					charClans[SelectedGroup].splice(index_of_thing, 1);
+				}else{
+					for(let clan = 0; clan<charClans.length; clan++){
+						if(charClans[clan].includes(i_after)){
+							charClans[clan].splice(charClans[clan].indexOf(i_after),1);
+						}
+					}
+					charClans[SelectedGroup].push(i_after)
+				}
 			}
 		} else {
 			ctx.fillStyle = '#ee3333';
@@ -5909,7 +5997,7 @@ function drawLCCharInfo(i, y) {
 					charDropdown = -i - 3;
 					charDropdownType = 1;
 				}
-			} else if (_xmouse < 665 + 240) {
+			} else if (_xmouse < 665 + 240 && !reorderCharDown && !reorderCharUp && !duplicateChar && !GroupMode) {
 				onButton = true;
 				hoverText = 'Start Location';
 				if (mouseIsDown && !pmouseIsDown) {
@@ -5921,14 +6009,19 @@ function drawLCCharInfo(i, y) {
 				onButton = true;
 				if (mouseIsDown && !pmouseIsDown) {
 					setUndo();
-					char.splice(i, 1);
-					myLevelChars[1].splice(i, 1);
+					char.splice(i_after, 1);
+					myLevelChars[1].splice(i_after, 1);
+					for(let clan = 0; clan<charClans.length; clan++){
+						if(charClans[clan].includes(i_after)){
+							charClans[clan].splice(charClans[clan].indexOf(i_after)-1,1);
+						}
+					}
 					// Update dialogue tab
 					for (let j = myLevelDialogue[1].length - 1; j >= 0; j--) {
 						if (myLevelDialogue[1][j].char < 50) {
-							if (myLevelDialogue[1][j].char == i) {
+							if (myLevelDialogue[1][j].char == i_after) {
 								myLevelDialogue[1].splice(j, 1);
-							} else if (myLevelDialogue[1][j].char > i) {
+							} else if (myLevelDialogue[1][j].char > i_after) {
 								myLevelDialogue[1][j].char--;
 							}
 						}
@@ -5937,11 +6030,74 @@ function drawLCCharInfo(i, y) {
 			}
 		}
 	}
-	// if (charDropdown == i) {
-	// 	if (mouseIsDown) {
-	// 		charDropdown = -1;
-	// 	}
-	// }
+	}else if(i<charClans.length){
+		let charimg = svgGroupIcon;
+		let charimgmat = charModels[[1]].charimgmat;
+		let sc = charInfoHeight / 64;
+		ctx.save();
+		ctx.transform(
+			charimgmat.a * sc,
+			charimgmat.b,
+			charimgmat.c,
+			charimgmat.d * sc,
+			(charimgmat.tx * sc) / 2 + 665 + charInfoHeight / 2,
+			(charimgmat.ty * sc) / 2 + y + charInfoHeight / 2
+		);
+		ctx.drawImage(charimg, -charimg.width / (scaleFactor*2), -charimg.height / (scaleFactor*2), charimg.width / scaleFactor, charimg.height / scaleFactor);
+		ctx.restore();
+		ctx.fillStyle = '#ffffff';
+		ctx.fillText("Group "+(i+1).toString().padStart(2, '0'),665 + charInfoHeight + 5,y + charInfoHeight / 2);
+		ctx.fillText(
+			charClans[i].length.toString().padStart(2, '0'),
+			665 + 240 - charInfoHeight * 1.5 + 5,
+			y + charInfoHeight / 2
+		);
+		}
+		if (
+			mouseOnTabWindow &&
+			!lcPopUp &&
+			charDropdown == -1 &&
+			!addButtonPressed &&
+			onRect(_xmouse, _ymouse + charsTabScrollBar, 665, y, 260, charInfoHeight)
+		) {
+			ctx.fillStyle = '#ee3333';
+			drawRemoveButton(665 + 240, y + charInfoHeight / 2 - 10, 20, 3);
+			// ctx.fillRect(665+240, y + charInfoHeight/2 - 10, 20, 20);
+			if (onRect(_xmouse, _ymouse + charsTabScrollBar, 665, y, charInfoHeight, charInfoHeight)) {
+				onButton = true;
+				hoverText = 'ID';
+				if (mouseIsDown && !pmouseIsDown) {
+					setUndo();
+					charDropdown = -i - 3;
+					charDropdownType = 0;
+				}
+			} else if (
+				onRect(
+					_xmouse,
+					_ymouse + charsTabScrollBar,
+					665 + 240 - charInfoHeight * 1.5,
+					y,
+					charInfoHeight * 1.5,
+					charInfoHeight
+				) 
+			) {
+				onButton = true;
+				hoverText = 'State';
+				if (mouseIsDown && !pmouseIsDown) {
+					// State clicked
+				}
+			} else if (_xmouse < 665 + 240) {
+				if (mouseIsDown && !pmouseIsDown && i<charClans.length) {
+					GroupMode = true;
+					SelectedGroup = i;
+				}
+			} else if (onRect(_xmouse, _ymouse + charsTabScrollBar, 665 + 240, y + charInfoHeight / 2 - 10, 20, 20)) {
+				onButton = true;
+				if (mouseIsDown && !pmouseIsDown) {
+					charClans.splice(i, 1);
+				}
+			}
+		}
 }
 
 function drawLCDiaInfo(i, y) {
@@ -6072,7 +6228,7 @@ function drawLCChars() {
 	let scale2 = scale / 30;
 	osctx5.transform(scale2, 0, 0, scale2, 330 - (scale * levelWidth) / 2, 240 - (scale * levelHeight) / 2);
 	for (let i = char.length - 1; i >= 0; i--) {
-		if (char[i].placed || (charDropdown == i && charDropdownType == 2)) {
+		if (char[i].placed || (charDropdown-charClans.length == i && charDropdownType == 2)) {
 			if (!char[i].placed) osctx5.globalAlpha = 0.5;
 			char[i].motionPath = generateMP(myLevelChars[1][i])
 			if (char[i].id < 35) {
@@ -6150,7 +6306,7 @@ function drawLCChars() {
 			osctx5.globalAlpha = 1;
 		}
 		if ((char[i].charState == 3 || char[i].charState == 4)) {
-			if(char[i].placed){	
+			if(char[i].placed&&!editorPaused){	
 				let section = Math.floor(levelTimer / char[i].speed) % (char[i].motionString.length - 2);
 				char[i].vx = cardinal[char[i].motionString[section + 2]][0] * (30 / char[i].speed);
 				char[i].vy = cardinal[char[i].motionString[section + 2]][1] * (30 / char[i].speed);
@@ -6166,9 +6322,11 @@ function drawLCChars() {
 				osctx5.strokeStyle = '#ff000091';
 			}
 			osctx5.beginPath();
-			for (let j = 0; j < char[i].motionPath.length-1; j++) {
-				osctx5.moveTo(char[i].motionPath[j][0]*30, char[i].motionPath[j][1]*30);
-				osctx5.lineTo(char[i].motionPath[j+1][0]*30, char[i].motionPath[j+1][1]*30);
+			if(typeof(char[i].motionPath)!='undefined'){
+				for (let j = 0; j < char[i].motionPath.length-1; j++) {
+					osctx5.moveTo(char[i].motionPath[j][0]*30, char[i].motionPath[j][1]*30);
+					osctx5.lineTo(char[i].motionPath[j+1][0]*30, char[i].motionPath[j+1][1]*30);
+				}
 			}
 			osctx5.stroke();
 			osctx5.globalAlpha = 1;
@@ -6953,6 +7111,56 @@ function drawMinusButton(x, y, s, p) {
 	ctx.beginPath();
 	ctx.moveTo(x, y + s / 2);
 	ctx.lineTo(x + s, y + s / 2);
+	ctx.stroke();
+}
+
+function drawPauseButton(x, y, s, p) {
+	ctx.strokeStyle = '#606060';
+	ctx.lineWidth = 3;
+	x += p;
+	y += p;
+	s -= p * 2;
+	ctx.beginPath();
+	ctx.moveTo(x + s / 3, y);
+	ctx.lineTo(x + s / 3, y + s);
+	ctx.moveTo(x + (s / 2 + s / 3), y);
+	ctx.lineTo(x + (s / 2 + s / 3), y + s);
+	ctx.stroke();
+}
+
+function drawFolderButton(x, y, s, p) {
+	ctx.strokeStyle = '#606060';
+	ctx.lineWidth = 3;
+	x += p;
+	y += p;
+	s -= p * 2;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x, y + s);
+	ctx.moveTo(x,y);
+	ctx.lineTo(x + (s / 2.5), y);
+	ctx.moveTo(x + (s / 2.5), y);
+	ctx.lineTo(x + (s / 2.5), y + (s/3));
+	ctx.moveTo(x + (s / 2.5), y + (s/3));
+	ctx.lineTo(x + s, y + (s/3));
+	ctx.moveTo(x + s, y + (s/3));
+	ctx.lineTo(x + s, y+s);
+	ctx.moveTo(x + s, y+s);
+	ctx.lineTo(x, y+s);
+	ctx.stroke();
+}
+
+function drawCheckButton(x, y, s, p) {
+	ctx.strokeStyle = '#33ff00ff';
+	ctx.lineWidth = 3;
+	x += p;
+	y += p;
+	s -= p * 2;
+	ctx.beginPath();
+	ctx.moveTo(x, y+s/2);
+	ctx.lineTo(x + s / 2, y + s);
+	ctx.moveTo(x + s / 2, y + s);
+	ctx.lineTo(x + s, y);
 	ctx.stroke();
 }
 
@@ -8526,14 +8734,15 @@ function draw() {
 					let charInfoY = (selectedTab + 1) * tabHeight + 5;
 					// TODO: only compute the look up table when it changes
 					let charInfoYLookUp = [];
-					for (let i = 0; i < myLevelChars[1].length; i++) {
-						if(charClans.length>0){
-							checkCharClans(i);
-						}
+					for (let i = 0; i < (charClans.length+myLevelChars[1].length); i++) {
 						charInfoYLookUp.push(charInfoY);
 						charInfoY += charInfoHeight + 5;
-						if (myLevelChars[1][i][3] == 3 || myLevelChars[1][i][3] == 4)
-							charInfoY += diaInfoHeight * myLevelChars[1][i][5].length;
+						if(i>charClans.length-1){
+							i_after = i-charClans.length;
+							if (myLevelChars[1][i_after][3] == 3 || myLevelChars[1][i_after][3] == 4) charInfoY += diaInfoHeight * myLevelChars[1][i_after][5].length;
+						}else{
+
+						}
 					}
 					var tabContentsHeight = Math.max(
 						charInfoY,
@@ -8571,11 +8780,11 @@ function draw() {
 					ctx.fillStyle = '#a0a0a0';
 					ctx.fillRect(cwidth - 10, scrollBarY, 10, scrollBarH);
 					ctx.save();
-					ctx.translate(0, -charsTabScrollBar);
 					ctx.textAlign = 'left';
 					ctx.textBaseline = 'middle';
 					ctx.font = '20px Helvetica';
-					for (let i = 0; i < Math.min(myLevelChars[1].length, charInfoYLookUp.length); i++) {
+					ctx.translate(0, -charsTabScrollBar);
+					for (let i = 0; i < ((charClans.length)+Math.min(myLevelChars[1].length, charInfoYLookUp.length)); i++) {
 						if (
 							(duplicateChar || reorderCharUp || reorderCharDown) &&
 							onRect(_xmouse, _ymouse + charsTabScrollBar, 665, charInfoYLookUp[i], 260, charInfoHeight)
@@ -8655,6 +8864,28 @@ function draw() {
 						}
 						addButtonPressed = true;
 					}
+					if (
+						!lcPopUp &&
+						onRect(
+							_xmouse,
+							_ymouse,
+							660 + 280,
+							cheight - (tabNames.length - selectedTab - 1) * tabHeight - 20,
+							15,
+							15
+						)
+					) {
+						if (GroupMode) {
+							onButton = true;
+							hoverText = 'Finish Grouping Objects';
+							if (mouseIsDown && !pmouseIsDown) {
+								reorderCharUp = false;
+								reorderCharDown = false;
+								GroupMode = false;
+							}
+						}
+						addButtonPressed = true;
+					}
 					if (duplicateChar && !addButtonPressed && mouseIsDown && !pmouseIsDown) duplicateChar = false;
 					if (
 						!lcPopUp &&
@@ -8701,38 +8932,84 @@ function draw() {
 						}
 						addButtonPressed = true;
 					}
+					if (
+						!lcPopUp &&
+						onRect(
+							_xmouse,
+							_ymouse,
+							660 + 85,
+							cheight - (tabNames.length - selectedTab - 1) * tabHeight - 20,
+							15,
+							15
+						)
+					) {
+						if (myLevelChars[1].length < 50) {
+							onButton = true;
+							hoverText = 'Pause Moving Objects';
+							if (mouseIsDown && !pmouseIsDown) {
+									editorPaused = !editorPaused;
+									levelTimer = 0;
+									resetCharPositions();
+							}
+						}
+						addButtonPressed = true;
+					}
+					if (
+						!lcPopUp &&
+						onRect(
+							_xmouse,
+							_ymouse,
+							660 + 105,
+							cheight - (tabNames.length - selectedTab - 1) * tabHeight - 20,
+							15,
+							15
+						)
+					) {
+						if (charClans.length < groupcols.length) {
+							onButton = true;
+							hoverText = 'Crate New Group';
+							if (mouseIsDown && !pmouseIsDown) {
+								charClans.push([]);
+							}
+						}
+						addButtonPressed = true;
+					}
 					if (reorderCharDown && !addButtonPressed && mouseIsDown && !pmouseIsDown) reorderCharDown = false;
-
 					if (charDropdown == -2) charDropdown = -1;
 					if (charDropdown >= 0) {
+						charDropdownNew = charDropdown-charClans.length
 						if (charDropdownType == 0) {
 							if (_keysDown[16]) {
-								myLevelChars[1][charDropdown][0]--;
-								if (myLevelChars[1][charDropdown][0] < 0)
-									myLevelChars[1][charDropdown][0] = charD.length - 1;
-								while (charD[myLevelChars[1][charDropdown][0]][7] == 0) {
-									myLevelChars[1][charDropdown][0]--;
-									if (myLevelChars[1][charDropdown][0] < 0)
-										myLevelChars[1][charDropdown][0] = charD.length - 1;
+								myLevelChars[1][charDropdownNew][0]--;
+								if (myLevelChars[1][charDropdownNew][0] < 0)
+									myLevelChars[1][charDropdownNew][0] = charD.length - 1;
+								while (charD[myLevelChars[1][charDropdownNew][0]][7] == 0) {
+									myLevelChars[1][charDropdownNew][0]--;
+									if (myLevelChars[1][charDropdownNew][0] < 0)
+										myLevelChars[1][charDropdownNew][0] = charD.length - 1;
 								}
 							} else {
-								myLevelChars[1][charDropdown][0]++;
-								if (myLevelChars[1][charDropdown][0] > charD.length - 1)
-									myLevelChars[1][charDropdown][0] = 0;
-								while (charD[myLevelChars[1][charDropdown][0]][7] == 0) {
-									myLevelChars[1][charDropdown][0]++;
-									if (myLevelChars[1][charDropdown][0] > charD.length - 1)
-										myLevelChars[1][charDropdown][0] = 0;
+								if(charDropdown>charClans.length-1){
+									myLevelChars[1][charDropdownNew][0]++;
+									if (myLevelChars[1][charDropdownNew][0] > charD.length - 1)
+										myLevelChars[1][charDropdownNew][0] = 0;
+									while (charD[myLevelChars[1][charDropdownNew][0]][7] == 0) {
+										myLevelChars[1][charDropdownNew][0]++;
+										if (myLevelChars[1][charDropdownNew][0] > charD.length - 1)
+											myLevelChars[1][charDropdownNew][0] = 0;
+									}
 								}
 							}
-							myLevelChars[1][charDropdown][3] = charD[myLevelChars[1][charDropdown][0]][9];
-							if (myLevelChars[1][charDropdown][3] == 3 || myLevelChars[1][charDropdown][3] == 4) {
-								levelTimer = 0;
-								checkCharClans(i);
-								resetCharPositions();
+							if(charDropdown>charClans.length-1){
+								myLevelChars[1][charDropdownNew][3] = charD[myLevelChars[1][charDropdownNew][0]][9];
+								if (myLevelChars[1][charDropdownNew][3] == 3 || myLevelChars[1][charDropdownNew][3] == 4) {
+									levelTimer = 0;
+									checkCharClans(i);
+									resetCharPositions();
+								}
+								resetLCChar(charDropdownNew);
+								charDropdown = -2;
 							}
-							resetLCChar(charDropdown);
-							charDropdown = -2;
 						} else if (charDropdownType == 1) {
 							ctx.fillStyle = '#ffffff';
 							let textSize = 12.5;
@@ -8771,7 +9048,7 @@ function draw() {
 										ctx.fillStyle = '#000000';
 										if (mouseIsDown && !addButtonPressed) {
 											setUndo();
-											myLevelChars[1][charDropdown][3] = i;
+											myLevelChars[1][charDropdownNew][3] = i;
 										}
 									}
 									ctx.fillText(
@@ -8791,14 +9068,14 @@ function draw() {
 								Math.max(_ymouse - lcPan[1] - (240 - (scale * levelHeight) / 2), 0),
 								levelHeight * scale
 							);
-							myLevelChars[1][charDropdown][1] = mapRange(
+							myLevelChars[1][charDropdownNew][1] = mapRange(
 								xmouseConstrained,
 								0,
 								levelWidth * scale,
 								0,
 								levelWidth
 							);
-							myLevelChars[1][charDropdown][2] = mapRange(
+							myLevelChars[1][charDropdownNew][2] = mapRange(
 								ymouseConstrained,
 								0,
 								levelHeight * scale,
@@ -8806,23 +9083,25 @@ function draw() {
 								levelHeight
 							);
 							if (!_keysDown[16]) {
-								myLevelChars[1][charDropdown][1] = Math.round(myLevelChars[1][charDropdown][1] * 2) / 2;
-								myLevelChars[1][charDropdown][2] = Math.round(myLevelChars[1][charDropdown][2] * 2) / 2;
+								myLevelChars[1][charDropdownNew][1] = Math.round(myLevelChars[1][charDropdownNew][1] * 2) / 2;
+								myLevelChars[1][charDropdownNew][2] = Math.round(myLevelChars[1][charDropdownNew][2] * 2) / 2;
 							}
-							char[charDropdown].x = char[charDropdown].px =
-								+myLevelChars[1][charDropdown][1].toFixed(2) * 30;
-							char[charDropdown].y = char[charDropdown].py =
-								+myLevelChars[1][charDropdown][2].toFixed(2) * 30;
+							char[charDropdownNew].x = char[charDropdownNew].px =
+								+myLevelChars[1][charDropdownNew][1].toFixed(2) * 30;
+							char[charDropdownNew].y = char[charDropdownNew].py =
+								+myLevelChars[1][charDropdownNew][2].toFixed(2) * 30;
 						} else if (charDropdownType == 3) {
 							let flat = (valueAtClick + (lastClickY - _ymouse)) * 0.5;
-							char[charDropdown].speed = flat > 100 ? 100 : -Math.log(1 - flat / 100) * 100;
-							char[charDropdown].speed = Math.floor(Math.max(Math.min(char[charDropdown].speed, 99), 1));
-							myLevelChars[1][charDropdown][4] = char[charDropdown].speed;
+							charDropdownNew = charDropdown;
+							char[charDropdownNew].speed = flat > 100 ? 100 : -Math.log(1 - flat / 100) * 100;
+							char[charDropdownNew].speed = Math.floor(Math.max(Math.min(char[charDropdownNew].speed, 99), 1));
+							myLevelChars[1][charDropdownNew][4] = char[charDropdownNew].speed;
 							levelTimer = 0;
 							resetCharPositions();
+							checkCharClans(charDropdownNew);
 							if (mousePressedLastFrame) {
-								char[charDropdown].motionString = generateMS(myLevelChars[1][charDropdown]);
-								char[charDropdown].motionPath = generateMP(myLevelChars[1][charDropdown]);
+								char[charDropdownNew].motionString = generateMS(myLevelChars[1][charDropdownNew]);
+								char[charDropdownNew].motionPath = generateMP(myLevelChars[1][charDropdownNew]);
 								charDropdown = -2;
 							}
 						} else if (charDropdownType == 4) {
@@ -8832,6 +9111,7 @@ function draw() {
 							char[charDropdown].motionString = generateMS(myLevelChars[1][charDropdown]);
 							char[charDropdown].motionPath = generateMP(myLevelChars[1][charDropdown]);
 							levelTimer = 0;
+							checkCharClans(charDropdown);
 							resetCharPositions();
 							charDropdown = -2;
 						} else if (charDropdownType == 5) {
@@ -8844,29 +9124,30 @@ function draw() {
 								char[charDropdown].motionPath = generateMP(myLevelChars[1][charDropdown]);
 								levelTimer = 0;
 								resetCharPositions();
+								checkCharClans(charDropdown);
 								charDropdown = -2;
 							}
 						}
 
-						if (charDropdown >= 0 && mouseIsDown && !pmouseIsDown && !addButtonPressed) {
-							let pCharState = char[charDropdown].charState;
-							resetLCChar(charDropdown);
+						if (charDropdownNew >= 0 && mouseIsDown && !pmouseIsDown && !addButtonPressed) {
+							let pCharState = char[charDropdownNew].charState;
+							resetLCChar(charDropdownNew);
 							if (charDropdownType == 2) {
-								char[charDropdown].placed = true;
+								char[charDropdownNew].placed = true;
 								levelTimer = 0;
 								resetCharPositions();
 								 
 							} else if (charDropdownType == 1) {
-								if (char[charDropdown].charState == 3 || char[charDropdown].charState == 4) {
+								if (char[charDropdownNew].charState == 3 || char[charDropdownNew].charState == 4) {
 									if (pCharState != 3 && pCharState != 4) {
-										char[charDropdown].speed = myLevelChars[1][charDropdown][4];
-										char[charDropdown].motionString = generateMS(myLevelChars[1][charDropdown]);
-										char[charDropdown].motionPath = generateMP(myLevelChars[1][charDropdown]);
+										char[charDropdownNew].speed = myLevelChars[1][charDropdownNew][4];
+										char[charDropdownNew].motionString = generateMS(myLevelChars[1][charDropdownNew]);
+										char[charDropdownNew].motionPath = generateMP(myLevelChars[1][charDropdownNew]);
 									}
 								} else {
-									char[charDropdown].speed = 0;
-									char[charDropdown].motionString = [];
-									char[charDropdown].motionPath = [];
+									char[charDropdownNew].speed = 0;
+									char[charDropdownNew].motionString = [];
+									char[charDropdownNew].motionPath = [];
 								}
 							}
 							charDropdown = -2;
@@ -8876,7 +9157,7 @@ function draw() {
 					ctx.restore();
 
 					ctx.fillStyle = '#cccccc';
-					ctx.fillRect(660, cheight - (tabNames.length - selectedTab - 1) * tabHeight - 25, 85, 25);
+					ctx.fillRect(660, cheight - (tabNames.length - selectedTab - 1) * tabHeight - 25, 125, 25);
 					drawAddButton(660 + 5, cheight - (tabNames.length - selectedTab - 1) * tabHeight - 20, 15, 0);
 					drawDuplicateButton(
 						660 + 25,
@@ -8886,6 +9167,13 @@ function draw() {
 					);
 					drawUpButton(660 + 45, cheight - (tabNames.length - selectedTab - 1) * tabHeight - 20, 15, 1);
 					drawDownButton(660 + 65, cheight - (tabNames.length - selectedTab - 1) * tabHeight - 20, 15, 1);
+					drawPauseButton(660 + 85, cheight - (tabNames.length - selectedTab - 1) * tabHeight - 20, 15, 1);
+					drawFolderButton(660 + 105, cheight - (tabNames.length - selectedTab - 1) * tabHeight - 20, 15, 1);
+					if(GroupMode){
+						ctx.fillStyle = '#000000ff';
+						ctx.fillRect(660+275, cheight - (tabNames.length - selectedTab - 1) * tabHeight - 25, 25, 25);
+						drawCheckButton(660 + 280, cheight - (tabNames.length - selectedTab - 1) * tabHeight - 20, 15, 1);
+					}
 					break;
 
 				case 2:
@@ -9285,6 +9573,7 @@ function draw() {
 						duplicateChar = false;
 						reorderCharUp = false;
 						reorderCharDown = false;
+						GroupMode = false;
 						reorderDiaUp = false;
 						reorderDiaDown = false;
 						editingTextBox = false;
@@ -9656,8 +9945,9 @@ function draw() {
 					ctx.font = '20px Helvetica';
 					ctx.textBaseline = 'top';
 					ctx.textAlign = 'left';
+					// Brave
 					wrapText(
-						"You heavent played 5osc? would you like to download it now?",
+						"",
 						(cwidth - lcPopUpW) / 2 + 10,
 						(cheight - lcPopUpH) / 2 + 5,
 						lcPopUpW - 20,
@@ -9746,8 +10036,9 @@ function draw() {
 				}
 				ctx.globalAlpha = 1;
 			}
-
-			levelTimer++;
+			if(!editorPaused){
+				levelTimer++;
+			}
 			if (lcPopUpNextFrame) lcPopUp = true;
 			lcPopUpNextFrame = false;
 			break;
@@ -9827,6 +10118,25 @@ function draw() {
 				ctx.font = '24px Helvetica';
 				ctx.fillText('Sort by: ' + exploreSortText[exploreSort], 932-exploreSortTextWidth + 5, 88);
 
+				// Featured only
+				if (onRect(_xmouse, _ymouse, 932-(exploreFeatTextWidth*2)-20, 85, exploreFeatTextWidth, 30)) {
+					ctx.fillStyle = '#404040';
+					onButton = true;
+					if (mouseIsDown && !pmouseIsDown) {
+						exploreFeatured = !exploreFeatured;
+						setExplorePage(explorePage);
+					}
+				} else ctx.fillStyle = '#333333';
+				ctx.fillRect(932-(exploreFeatTextWidth*2)-20, 85, exploreFeatTextWidth+17, 30);
+				ctx.textBaseline = 'top';
+				ctx.textAlign = 'left';
+				ctx.fillStyle = '#ffffff';
+				ctx.font = '24px Helvetica';
+				boolstring = "";
+				if(exploreFeatured) boolstring = "True";
+				else boolstring = "False";
+				ctx.fillText('Featured: ' + boolstring, 932-(exploreFeatTextWidth*2)-20 + 5, 88);
+				
 				// Page number
 				ctx.textAlign = 'center';
 				ctx.font = '30px Helvetica';
@@ -10481,24 +10791,11 @@ let pure_page = [];
 
 function getExplorePage(p, t, s) {
 	requestAdded();
-	return fetch('https://5beam.zelo.dev/api/page?page=' + p + '&sort=' + s + '&type=' + t, {method: 'GET'})
+	return fetch('https://5beam.zelo.dev/api/page?page=' + p + '&sort=' + s + '&type=' + t + "&featured=" + exploreFeatured, {method: 'GET'})
 		.then(async response => {
 			explorePageLevels = await response.json();
 			if (exploreTab == 0) setExploreThumbs();
 			truncateLevelTitles(explorePageLevels,0);
-			requestResolved();
-		})
-		.catch(err => {
-			console.log(err);
-			requestError();
-		});
-}
-
-function getExplorePure(p, t, s) {
-	requestAdded();
-	return fetch('https://5beam.zelo.dev/api/page?page=' + p + '&sort=' + s + '&type=' + t, {method: 'GET'})
-		.then(async response => {
-			explorePageLevels = await response.json();
 			requestResolved();
 		})
 		.catch(err => {
