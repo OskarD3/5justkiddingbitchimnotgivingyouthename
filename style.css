@@ -26,9 +26,9 @@ html{
 }
 body{
 	height:100%;
-	width:960px;
+	width:1280px;
 	margin:0 auto 0 auto;
-	min-height:600px;
+	min-height:980px;
 	position:relative;
 }
 p{
